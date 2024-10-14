@@ -6,20 +6,31 @@ const bodyParser = require('body-parser');
 
 app.use(bodyParser.json());
 
-app.post('/print', async (req, res) => {
+let isPrinting = false;
+
+app.post('/print', (req, res) => {
+    
+    if (isPrinting) {
+        return res.status(429).send('Printer is busy, please try again later');
+    }
+
+    isPrinting = true;
 
     const filePath = req.body.filePath;
-    console.log(filePath);
-    
-    try {
-        await printer.print(filePath);
-        res.status(200).send('Printed successfully');
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Failed to print');
-    }
-});
+    const absolutePath =filePath;
 
-app.listen(3000, () => {
-    console.log('Print server running on port 3000');
+    exec(`lp "${absolutePath}"`, (error, stdout, stderr) => {
+        isPrinting = false;
+
+        if (error) {
+            console.error(`Error: ${error.message}`);
+            return res.status(500).send('Failed to print');
+        }
+        if (stderr) {
+            console.error(`stderr: ${stderr}`);
+            return res.status(500).send('Failed to print');
+        }
+        console.log(`Printed: ${stdout}`);
+        res.status(200).send('Printed successfully');
+    });
 });
